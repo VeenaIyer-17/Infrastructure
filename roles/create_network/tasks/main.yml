@@ -1,0 +1,139 @@
+---
+- name: create VPC for Ansible
+  ec2_vpc_net:
+    name: ansibleVPC
+    state: present
+    cidr_block: "{{ vpc_cidr_block }}"
+    region: "{{ vpc_region }}"
+    tags:
+      Name: ansibleVPC
+  register: ansibleVPC
+
+- name: display ansibleVPC results
+  debug: var=ansibleVPC
+
+- name: create internet gateway for ansibleVPC
+  ec2_vpc_igw:
+    state: present
+    region: "{{ vpc_region }}"
+    vpc_id: "{{ ansibleVPC.vpc.id }}"
+    tags:
+      Name: ansibleVPC_IGW
+  register: ansibleVPC_igw
+
+- name: display ansibleVPC IGW details
+  debug: var=ansibleVPC_igw
+
+- name: obtain all AZ present in region {{ vpc_region }}
+  aws_az_facts:
+    region: "{{ vpc_region }}"
+  register: az_in_region
+
+- name: display all AZ present in region {{ vpc_region }}
+  debug: var=az_in_region
+
+
+- name: create subnet1
+  ec2_vpc_subnet:
+    state: present
+    cidr: "{{ subnet_cidr1 }}"
+    vpc_id: "{{ ansibleVPC.vpc.id }}"
+    region: "{{ vpc_region }}"
+    map_public: yes
+    tags:
+      Name: subnet1
+  register: subnet1
+
+- name: show public subnet details
+  debug: var=public_subnet
+
+- name: create subnet2
+  ec2_vpc_subnet:
+    state: present
+    cidr: "{{ subnet_cidr2 }}"
+    vpc_id: "{{ ansibleVPC.vpc.id }}"
+    region: "{{ vpc_region }}"
+    resource_tags:
+      Name: subnet2
+  register: subnet2
+
+
+- name: create new route table for public subnet
+  ec2_vpc_route_table:
+    state: present
+    region: "{{ vpc_region }}"
+    vpc_id: "{{ ansibleVPC.vpc.id }}"
+    tags:
+      Name: rt_ansibleVPC_PublicSubnet
+    subnets:
+      - "{{ subnet1.subnet.id }}"
+      - "{{ subnet2.subnet.id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ ansibleVPC_igw.gateway_id }}"
+  register: rt_ansibleVPC_PublicSubnet
+
+- name: display public route table
+  debug: var=rt_ansibleVPC_PublicSubnet
+
+- name: create a security group
+  ec2_group:
+    state: present
+    name: sg_ansibleVPC_security_group
+    description: security group
+    vpc_id: "{{ ansibleVPC.vpc.id }}"
+    tags:
+      Name: ansibleVPC_security_grp
+    region: "{{ vpc_region }}"
+    rules:
+      - proto: tcp
+        ports:
+          - 80
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        ports:
+          - 8080
+        cide_ip: 0.0.0.0/0
+      - proto: tcp
+        ports:
+          - 22
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        ports:
+          - 443
+        cidr_ip: 0.0.0.0/0
+  register: sg_ansibleVPC_security_group
+
+- name: ubuntu 18 LTS ec2
+  ec2:
+    key_name: "{{ my_useast1_key  }}"
+    instance_type: "{{ instance_size }}"
+    image: ami-04b9e92b5572fa0d1
+    wait: yes
+    region: "{{ vpc_region }}"
+    group_id: "{{ sg_ansibleVPC_security_group.group_id }}"
+    vpc_subnet_id: "{{ subnet1.subnet.id }}"
+    count_tag:
+      Name: jenkins
+    exact_count: 1
+    instance_tags: { "app":jenkins, "Name":jenkins }
+  register: ec2
+
+- name: Add A record for the new EC2 instance IP in Route53.
+  route53:
+    command: create
+    zone: "{{dns_zone}}"
+    record: "{{dns_zone}}"
+    type: A
+    ttl: 60
+    value: "{{ ec2.tagged_instances.0.public_ip }}"
+    wait: true
+    overwrite: true
+
+- name: Add EC2 instance to inventory groups.
+  add_host:
+      name: "{{ ec2.tagged_instances.0.public_ip }}"
+      groups: "aws,aws_nginx"
+      ansible_ssh_user: ubuntu
+      host_key_checking: true
+  when: ec2.tagged_instances.0.id is defined

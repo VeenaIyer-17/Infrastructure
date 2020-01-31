@@ -1,0 +1,18 @@
+- hosts: localhost
+  vars_files:
+    - vars/main.yml
+  roles:
+    - role: create_network
+      when: command == "start"
+    
+    - role: teardown_network
+      when: command == "stop"
+    
+- hosts: aws_nginx
+  gather_facts: true
+  become: true
+  vars_files:
+    - vars/main.yml
+  roles:
+    - role: server_config
+      when: command == "start"

@@ -1,0 +1,22 @@
+---
+  # AWS Credentials
+  my_useast1_key: "id_rsa"
+
+  vpc_region:     "us-east-1"
+
+  # VPC Information
+  vpc_cidr_block: "11.10.0.0/16"
+
+  #subnet
+  subnet_name : "mysubnet"
+  subnet_cidr1: 11.10.0.0/24
+  subnet_cidr2: 11.10.1.0/24
+  subnet_cidr3: 11.10.2.0/24
+
+  # Internet Gateway Name
+  igw_name: "Traffic IGW"
+
+  inventory_dir: "../../../"
+
+#The local path to which we would save our EC2 Private Key
+  keypair_name: "ec2_key_pair"
