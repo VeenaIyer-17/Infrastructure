@@ -1,0 +1,77 @@
+- name: update packages
+  command: "sudo apt update -y"
+  
+- name: wait for 5 sec
+  wait_for:
+    delay: 5
+    timeout: 0
+
+- name: java repo
+  command: "sudo apt install openjdk-8-jdk -y"
+
+- name: wait for 5 sec
+  wait_for:
+    delay: 5
+    timeout: 0
+
+- name: get jenkins key
+  shell: "wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo apt-key add -"
+
+- name: wait for 5 sec
+  wait_for:
+    delay: 5
+    timeout: 0
+
+- name: add jenkins repo
+  command: "sudo apt-add-repository \"deb http://pkg.jenkins-ci.org/debian binary/\" -y"
+
+- name: wait for 5 sec
+  wait_for:
+    delay: 5
+    timeout: 0
+
+- name: install jenkins
+  command: "sudo apt install jenkins -y"
+
+- name: wait for 5 sec
+  wait_for:
+    delay: 5
+    timeout: 0
+
+- name: certbot repo
+  command: "sudo add-apt-repository ppa:certbot/certbot -y"
+
+- name: install nginx
+  command: "sudo apt install -y nginx python-certbot-nginx"
+
+- name: Copy nginx configuration
+  copy:
+    src: nginx.conf
+    dest: /etc/nginx/sites-available/default
+    group: root
+    owner: root
+    mode: 0644
+
+- name: wait for 5 sec
+  wait_for:
+    delay: 5
+    timeout: 0
+
+- name: nginx config1
+  command: sudo nginx -t
+
+- name: wait for 5 sec
+  wait_for:
+    delay: 5
+    timeout: 0
+
+- name: nginx restart
+  command: sudo systemctl restart nginx
+
+- name: wait for 5 sec
+  wait_for:
+    delay: 5
+    timeout: 0
+
+- name: certbot config
+  command: sudo certbot --nginx -d "{{dns_zone}}" --staging --agree-tos --register-unsafely-without-email -n
