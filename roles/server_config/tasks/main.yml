@@ -57,6 +57,14 @@
     delay: 5
     timeout: 0
 
+- name: Timeout configuration
+  copy:
+    src: timeout.conf
+    dest: /etc/nginx/conf.d/
+    group: root
+    owner: root
+    mode: 0644
+
 - name: nginx config1
   command: sudo nginx -t
 
@@ -88,6 +96,14 @@
 - debug:
     var: docker_registery_info
 
+- name: install maven
+  command: sudo apt install maven -y
+
+- name: wait for 5 sec
+  wait_for:
+    delay: 5
+    timeout: 0
+
 - name: Docker Installation - repository installation
   shell: |
     sudo apt-get update
@@ -99,3 +115,4 @@
   register: docker_registery_installation_info
 - debug:
     var: docker_registery_installation_info
+
